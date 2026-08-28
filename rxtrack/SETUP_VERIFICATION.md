@@ -1,8 +1,5 @@
 # Database Setup Verification
 
-**Date:** August 28, 2026
-**Verified by:** Sunny
-
 ## Steps completed
 
 1. Created local `.env` file with `DATABASE_URL` pointing to local PostgreSQL instance (gitignored, not committed).
