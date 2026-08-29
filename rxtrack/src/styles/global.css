@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+/* @tailwind base; = Import Tailwind's base styles
+@tailwind components; = Import Tailwind's components
+@tailwind utilities; = Import Tailwind's utility classes
+* { margin: 0; padding: 0; } = Remove default spacing from all elements
+body { font-family: ... } = Set default font for the entire app */
