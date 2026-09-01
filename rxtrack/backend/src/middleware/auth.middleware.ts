@@ -12,7 +12,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
 
   const token = header.slice("Bearer ".length).trim();
   try {
-    req.user = jwt.verify(token, ENV.JWT_SECRET) as JwtPayload;
+    req.user = jwt.verify(token, ENV.JWT_SECRET, { algorithms: ["HS256"] }) as JwtPayload;
     return next();
   } catch {
     return next(new UnauthorizedError("Invalid or expired token"));
