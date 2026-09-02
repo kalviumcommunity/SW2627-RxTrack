@@ -6,10 +6,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
-  JWT_EXPIRES_IN: z
+    JWT_EXPIRES_IN: z
     .string()
     .regex(/^\d+(s|m|h|d|w|y)$/i, "JWT_EXPIRES_IN must be a duration like 7d, 12h, 30m")
     .default("7d"),
+});
 
 const parsed = envSchema.safeParse(process.env);
 

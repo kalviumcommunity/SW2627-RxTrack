@@ -4,6 +4,7 @@ import { ENV } from "./config/env";
 import authRoutes from "./routes/auth.routes";
 import { authenticate } from "./middleware/auth.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
+import prescriptionRoutes from "./routes/prescription.routes";
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get("/health", (_req, res) => {
 
 // Public endpoints — the only routes that DON'T need a token
 app.use("/api/auth", authRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
 
 // Example protected route — proves the JWT middleware works
 app.get("/api/me", authenticate, (req, res) => {
