@@ -33,7 +33,7 @@ export const prescriptionController = {
       if (!parsed.success) return next(new BadRequestError(formatIssues(parsed.error)));
 
       const result = await prescriptionService.list(actorFrom(req), parsed.data);
-      return res.status(200).json({ success: true, ...result });
+      return res.status(200).json({ success: true, data: result });
     } catch (err) {
       return next(err);
     }
