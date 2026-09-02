@@ -15,7 +15,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Public endpoints — the only routes that DON'T need a token
+// Route mounting — /api/auth is public; other routers must enforce auth (either here or within their routers)
 app.use("/api/auth", authRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
 
