@@ -33,7 +33,7 @@
     "**/*.tsx",
     "next-env.d.ts",
     ".next/types/**/*.ts"
-  ],
+, "frontend/app/doctor/page.jsx"  ],
   "exclude": [
     "node_modules"
   ]
