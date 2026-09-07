@@ -5,6 +5,8 @@ import authRoutes from "./routes/auth.routes";
 import { authenticate } from "./middleware/auth.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import prescriptionRoutes from "./routes/prescription.routes";
+import fulfillmentRoutes from "./routes/fulfillment.routes";
+
 
 const app = express();
 
@@ -18,6 +20,7 @@ app.get("/health", (_req, res) => {
 // Route mounting — /api/auth is public; other routers must enforce auth (either here or within their routers)
 app.use("/api/auth", authRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
+app.use("/api/fulfillments", fulfillmentRoutes);
 
 // Example protected route — proves the JWT middleware works
 app.get("/api/me", authenticate, (req, res) => {
