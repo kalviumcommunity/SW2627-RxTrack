@@ -48,6 +48,10 @@ export const prescriptionRepository = {
     });
   },
 
+  findQueue(where: Prisma.PrescriptionWhereInput, skip: number, take: number) {
+    return this.findMany(where, skip, take);
+  },
+
   count(where: Prisma.PrescriptionWhereInput) {
     return prisma.prescription.count({ where });
   },
