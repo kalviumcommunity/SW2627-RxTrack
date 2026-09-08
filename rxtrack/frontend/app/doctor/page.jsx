@@ -1,13 +1,18 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client'
 
 import { useEffect, useState } from 'react'
-import Button from '@/components/Button'
-import Card from '@/components/Card'
 import { useRouter } from 'next/navigation'
+import apiClient from '@/lib/api'
+
+const SERIF = '"Cormorant Garamond", Georgia, serif'
+const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
 
 export default function DoctorDashboard() {
   const [prescriptions, setPrescriptions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activePage, setActivePage] = useState('today')
+  const [expandedPrescription, setExpandedPrescription] = useState(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -22,25 +27,64 @@ export default function DoctorDashboard() {
 
       const mockPrescriptions = [
         {
-          id: '1',
-          patientName: 'John Smith',
-          status: 'READY',
-          createdAt: new Date().toLocaleDateString(),
-          medicineCount: 3,
+          id: 'RX-2026-1027',
+          patientName: 'Rahul Verma',
+          age: 46,
+          date: '17 Aug, 18:20',
+          medicines: ['Metformin 500mg', 'Telmidartan 40mg'],
+          pharmacy: 'Apollo, Sector 18',
+          status: 'Filled',
+          pickupTime: '40 min after consult',
         },
         {
-          id: '2',
-          patientName: 'Sarah Johnson',
-          status: 'PENDING',
-          createdAt: new Date().toLocaleDateString(),
-          medicineCount: 2,
+          id: 'RX-2026-1026',
+          patientName: 'Anita Singh',
+          age: 32,
+          date: '17 Aug, 08:05',
+          medicines: ['Azithromycin 500mg', 'Paracetamol 650mg'],
+          pharmacy: '1mg Pharmacy, Noida',
+          status: 'In queue',
+          queueTime: '6 hrs',
         },
         {
-          id: '3',
-          patientName: 'Michael Brown',
-          status: 'DISPENSED',
-          createdAt: new Date().toLocaleDateString(),
-          medicineCount: 4,
+          id: 'RX-2026-1025',
+          patientName: 'Vikram R.',
+          age: 58,
+          date: '16 Aug, 04:48',
+          medicines: ['Insulin Glargine'],
+          pharmacy: 'MedPlus, Indirapuram',
+          status: 'Not filled',
+          overdueTime: '3 days',
+        },
+        {
+          id: 'RX-2026-1024',
+          patientName: 'Sneha Patel',
+          age: 39,
+          date: '16 Aug, 11:55',
+          medicines: ['Ferrous Ascorbate', 'Folic Acid'],
+          pharmacy: 'Apollo, Sector 18',
+          status: 'Filled',
+          pickupTime: 'same day',
+        },
+        {
+          id: 'RX-2026-1023',
+          patientName: 'Arjun Nair',
+          age: 41,
+          date: '15 Aug, 06:15',
+          medicines: ['Pantoprazole 40mg', 'Domperidone'],
+          pharmacy: '1mg Pharmacy, Noida',
+          status: 'In queue',
+          queueTime: 'hold till salary day',
+        },
+        {
+          id: 'RX-2026-1022',
+          patientName: 'Fatima Sheikh',
+          age: 63,
+          date: '15 Aug, 02:30',
+          medicines: ['Amlodipine 5mg', 'Aspirin 75mg'],
+          pharmacy: 'Wellness Forever',
+          status: 'Filled',
+          pickupTime: 'same day',
         },
       ]
 
@@ -51,137 +95,354 @@ export default function DoctorDashboard() {
     initDashboard()
   }, [router])
 
-  const getStatusStyles = (status) => {
-    const styles = {
-      PENDING: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-      PROCESSING: 'bg-blue-50 text-blue-700 border border-blue-200',
-      READY: 'bg-green-50 text-green-700 border border-green-200',
-      DISPENSED: 'bg-green-100 text-green-800 border border-green-300',
-      REJECTED: 'bg-red-50 text-red-700 border border-red-200',
-    }
-    return styles[status] || styles.PENDING
+  const getStatusColor = (status) => {
+    if (status === 'Filled') return 'text-teal-600 bg-teal-50'
+    if (status === 'In queue') return 'text-amber-600 bg-amber-50'
+    return 'text-[#273353] bg-blue-50'
   }
 
   const getStatusDot = (status) => {
-    const colors = {
-      PENDING: 'bg-yellow-500',
-      PROCESSING: 'bg-blue-500',
-      READY: 'bg-green-500',
-      DISPENSED: 'bg-green-600',
-      REJECTED: 'bg-red-500',
-    }
-    return colors[status] || colors.PENDING
+    if (status === 'Filled') return 'bg-teal-600'
+    if (status === 'In queue') return 'bg-amber-500'
+    return 'bg-[#273353]'
   }
+
+  const navigationItems = [
+    { id: 'today', label: 'Today' },
+    { id: 'prescriptions', label: 'Prescriptions' },
+    { id: 'patients', label: 'Patients' },
+    { id: 'medicines', label: 'Medicines' },
+    { id: 'settings', label: 'Settings' },
+  ]
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-white flex items-center justify-center" style={{ fontFamily: SANS }}>
+        <p className="text-gray-500">Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-center">
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+      <div className="min-h-screen bg-gray-50 flex" style={{ fontFamily: SANS }}>
+        {/* Sidebar */}
+        <div className="w-56 bg-gray-900 text-white flex flex-col border-r border-gray-800">
+          {/* Logo */}
+          <div className="h-20 flex items-center px-6 border-b border-gray-800">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600 mt-1">Manage your prescriptions</p>
+              <div className="font-bold text-lg" style={{ fontFamily: SERIF }}>Rx Track</div>
+              <div className="text-xs text-gray-400">TATA 1mg</div>
             </div>
-            <Button
-              label="Upload Prescription"
-              variant="primary"
-              onClick={() => router.push('/doctor/upload')}
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-1">
+            {navigationItems.map((item) => {
+              const isActive = activePage === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  className={`w-full text-left px-4 py-3 rounded text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-white text-gray-900'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="px-4 py-6 border-t border-gray-800">
+            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
+              N
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top Bar */}
+          <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
+            <input
+              type="text"
+              placeholder="Search a patient, RX number or medicine"
+              className="flex-1 mr-8 px-4 py-2 bg-gray-100 rounded border-0 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
+              style={{ color: '#273353' }}
             />
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">Thu, 17 Aug</span>
+              <button className="px-4 py-2 bg-gray-900 text-white rounded text-sm font-medium hover:bg-gray-800">
+                Upload prescription
+              </button>
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-[#273353]">
+                AS
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto">
+            <div className="p-8">
+              {/* Header */}
+              <div className="mb-8">
+                <p className="text-xs font-semibold text-[#273353] mb-2 tracking-wide">THURSDAY MORNING CLINIC</p>
+                <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: SERIF, fontWeight: 600 }}>Good morning, Dr. Sharma.</h1>
+                <p className="text-base text-gray-600 leading-relaxed max-w-2xl">
+                  Ten of yesterday's prescriptions are still sitting in a pharmacy queue, and three chronic refills never got picked up at all.
+                </p>
+              </div>
+
+              {/* Compliance & Stats */}
+              <div className="flex gap-8 mb-8">
+                <div className="flex-1">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-white rounded p-6 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">PRESCRIPTIONS WRITTEN</p>
+                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>128</p>
+                      <p className="text-xs text-gray-500 mb-1">since 1 Aug</p>
+                      <p className="text-xs text-green-600 font-medium">↗ 12 this week</p>
+                    </div>
+                    <div className="bg-white rounded p-6 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">FILLED BY PATIENTS</p>
+                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>96</p>
+                      <p className="text-xs text-gray-500 mb-1">75% of everything you wrote</p>
+                      <p className="text-xs text-green-600 font-medium">↗ 4 pts</p>
+                    </div>
+                    <div className="bg-white rounded p-6 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">SITTING IN QUEUE</p>
+                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>10</p>
+                      <p className="text-xs text-gray-500">3 waiting over 24 hrs</p>
+                    </div>
+                    <div className="bg-white rounded p-6 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">NEVER FILLED</p>
+                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>22</p>
+                      <p className="text-xs text-gray-500">mostly chronic refills</p>
+                      <p className="text-xs text-[#273353] font-medium">↘ 2 pts</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Compliance Streak */}
+                <div className="w-48 bg-white rounded p-6 border border-gray-200">
+                  <p className="text-xs text-gray-600 font-semibold mb-2 tracking-wide">COMPLIANCE STREAK</p>
+                  <p className="text-4xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>6 weeks</p>
+                  <p className="text-xs text-gray-500">above 70%</p>
+                </div>
+              </div>
+
+              {/* Recent Prescriptions */}
+              <div className="grid grid-cols-3 gap-8">
+                <div className="col-span-2">
+                  <div className="bg-white rounded border border-gray-200">
+                    <div className="p-6 border-b border-gray-200">
+                      <h2 className="text-lg font-bold text-gray-900 mb-1" style={{ fontFamily: SERIF, fontWeight: 600 }}>Recent prescriptions</h2>
+                      <p className="text-sm text-gray-600">Live status straight from the pharmacy queue</p>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="px-6 py-4 border-b border-gray-200 flex gap-2">
+                      <button className="px-3 py-1 rounded text-sm font-medium bg-gray-900 text-white">
+                        Everything
+                      </button>
+                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
+                        In queue
+                      </button>
+                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
+                        Not filled
+                      </button>
+                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
+                        Filled
+                      </button>
+                    </div>
+
+                    {/* Prescriptions List */}
+                    <div className="divide-y divide-gray-200">
+                      {prescriptions.map((rx) => (
+                        <div
+                          key={rx.id}
+                          className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() =>
+                            setExpandedPrescription(
+                              expandedPrescription === rx.id ? null : rx.id
+                            )
+                          }
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-3 h-3 rounded-full ${getStatusDot(rx.status)} mt-1`}></div>
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {rx.patientName}{' '}
+                                  <span className="text-gray-500 font-normal">{rx.age} yrs</span>
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {rx.id} · {rx.date}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded ${getStatusColor(rx.status)}`}>
+                              {rx.status}
+                            </span>
+                          </div>
+
+                          {expandedPrescription === rx.id && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <div className="mb-4">
+                                <p className="text-xs text-gray-600 font-semibold mb-2 tracking-wide">MEDICINES</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {rx.medicines.map((med, i) => (
+                                    <span
+                                      key={i}
+                                      className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"
+                                    >
+                                      {med}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-700">
+                                <span className="font-medium">{rx.pharmacy}</span> — {rx.pickupTime || rx.queueTime || rx.overdueTime || 'Pending'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="px-6 py-4 text-center text-sm text-[#273353] font-medium hover:underline cursor-pointer">
+                      View all prescriptions
+                    </div>
+                  </div>
+
+                  {/* Medicine Analytics */}
+                  <div className="bg-white rounded border border-gray-200 p-6 mt-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900" style={{ fontFamily: SERIF, fontWeight: 600 }}>Which medicines actually get bought</h3>
+                        <p className="text-sm text-gray-600">Fill rate per molecule, last 30 days</p>
+                      </div>
+                      <a href="#" className="text-[#273353] font-medium text-sm hover:underline">
+                        Full report
+                      </a>
+                    </div>
+
+                    <div className="space-y-4">
+                      {[
+                        { name: 'Metformin 500mg', rate: 90, count: 46 },
+                        { name: 'Telmidartan 40mg', rate: 84, count: 38 },
+                        { name: 'Atorvastatin 10mg', rate: 71, count: 33 },
+                        { name: 'Insulin Glargine', rate: 54, count: 21 },
+                        { name: 'Vitamin D3 60k', rate: 38, count: 27 },
+                      ].map((med, i) => (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-900">{med.name}</span>
+                            <span className="text-xs text-gray-600">{med.rate}% of {med.count}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-[#273353] h-2 rounded-full"
+                              style={{ width: `${med.rate}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Sidebar */}
+                <div className="space-y-6">
+                  {/* Worth a Phone Call */}
+                  <div className="bg-white rounded border border-gray-200 p-6">
+                    <p className="text-sm font-semibold text-gray-900 mb-4 tracking-wide">WORTH A PHONE CALL</p>
+                    <div className="space-y-4">
+                      {[
+                        { name: 'Vikram R.', issue: 'Insulin refill overdue · 3 days', action: 'Call' },
+                        { name: 'Arjun Nair', issue: 'Prescription untouched for 48 hrs', action: 'Nudge' },
+                        { name: 'Fatima Sheikh', issue: 'BP review due this Friday', action: 'Book' },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-[#273353]">
+                              {item.name[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                              <p className="text-xs text-gray-600">{item.issue}</p>
+                            </div>
+                          </div>
+                          <button className="px-3 py-1 bg-gray-900 text-white rounded text-xs font-medium hover:bg-gray-800">
+                            {item.action}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pattern Spotted */}
+                  <div className="bg-blue-50 rounded border border-blue-200 p-6">
+                    <p className="text-sm font-semibold text-gray-900 mb-2 tracking-wide">PATTERN SPOTTED</p>
+                    <p className="text-sm font-semibold text-gray-900 mb-2" style={{ fontFamily: SERIF, fontWeight: 600 }}>
+                      "Vitamin D3 60k drops off after the first strip."
+                    </p>
+                    <p className="text-xs text-gray-600 mb-4">
+                      Only 38% of your Vitamin D3 scripts get filled — the lowest in your panel. Patients on 4+ medicine scripts skip it most often.
+                    </p>
+                    <button className="w-full px-3 py-2 bg-[#273353] text-white rounded text-xs font-medium hover:bg-[#1a1f2e]">
+                      See the 27 patients
+                    </button>
+                  </div>
+
+                  {/* Pharmacies You Send To */}
+                  <div className="bg-white rounded border border-gray-200 p-6">
+                    <p className="text-sm font-semibold text-gray-900 mb-4 tracking-wide">PHARMACIES YOU SEND TO</p>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-gray-900">Apollo, Sector 18</span>
+                          <span className="text-xs text-gray-600">40%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-[#273353] h-2 rounded-full" style={{ width: '40%' }}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-gray-900">1mg Pharmacy, Noida</span>
+                          <span className="text-xs text-gray-600">33%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-[#273353] h-2 rounded-full" style={{ width: '33%' }}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-gray-900">MedPlus, Indirapuram</span>
+                          <span className="text-xs text-gray-600">21%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-[#273353] h-2 rounded-full" style={{ width: '21%' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <Card title="Recent Prescriptions">
-          {prescriptions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600 mb-4">No prescriptions yet</p>
-              <Button
-                label="Create First Prescription"
-                variant="primary"
-                onClick={() => router.push('/doctor/upload')}
-              />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">
-                      Patient Name
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">
-                      Medicines
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">
-                      Date
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prescriptions.map((prescription) => (
-                    <tr
-                      key={prescription.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <p className="font-medium text-gray-900">{prescription.patientName}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-gray-600 text-sm">{prescription.medicineCount} items</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${getStatusDot(
-                              prescription.status
-                            )}`}
-                          ></div>
-                          <span
-                            className={`px-3 py-1 rounded-md text-xs font-medium ${getStatusStyles(
-                              prescription.status
-                            )}`}
-                          >
-                            {prescription.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-gray-600 text-sm">{prescription.createdAt}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Button
-                          label="View"
-                          variant="secondary"
-                          onClick={() =>
-                            router.push(`/doctor/prescriptions/${prescription.id}`)
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
+    </>
   )
 }
