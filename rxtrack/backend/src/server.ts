@@ -6,7 +6,7 @@ import { authenticate } from "./middleware/auth.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import prescriptionRoutes from "./routes/prescription.routes";
 import fulfillmentRoutes from "./routes/fulfillment.routes";
-import analyticsRoutes from "./routes/analytics.routes";   // add near the other route imports
+import analyticsRoutes from "./routes/analytics.routes";
 
 
 
