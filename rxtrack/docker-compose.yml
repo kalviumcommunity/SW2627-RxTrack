@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rxtrack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rxtrack
+      POSTGRES_PASSWORD: rxtrack_dev_password
+      POSTGRES_DB: rxtrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - rxtrack-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rxtrack -d rxtrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rxtrack-postgres-data:

@@ -1,4 +1,7 @@
-# RxTrack GCP Deployment Notes
+# RxTrack GCP Setup Notes
+
+These steps describe the MVP deployment setup. Keep secrets in Google Secret
+Manager or Cloud Run environment configuration; never commit production values.
 
 ## Project Setup
 
@@ -9,6 +12,33 @@ Planned services:
 - Google Cloud Run - Backend API
 - Google Cloud Run - Frontend
 - Cloud SQL / PostgreSQL - Database
+
+Set the active project before deploying:
+
+```bash
+gcloud auth login
+gcloud config set project YOUR_GCP_PROJECT_ID
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com sqladmin.googleapis.com artifactregistry.googleapis.com
+```
+
+Choose a region and record it for the deployment team:
+
+```bash
+gcloud config set run/region us-central1
+```
+
+## Environment Templates
+
+For local development, copy the repository template files and replace only the
+local values:
+
+```bash
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+```
+
+The local database is provided by `docker compose up -d postgres`. The root
+`.env.example` uses the same credentials as the Compose service.
 
 ## Backend Deployment
 
@@ -47,6 +77,10 @@ After deployment, verify:
 - Database connection works.
 - Authentication works.
 
-## Notes
+## MVP Verification Checklist
 
-Actual production deployment will be completed during the deployment phase of the RxTrack MVP sprint.
+- `gcloud config get-value project` returns the intended project.
+- PostgreSQL/Cloud SQL is reachable from the backend.
+- Backend health and authentication endpoints respond successfully.
+- Frontend loads and uses the deployed backend URL.
+- No production secrets are present in Git.
