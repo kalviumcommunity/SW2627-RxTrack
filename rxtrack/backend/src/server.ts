@@ -6,6 +6,8 @@ import { authenticate } from "./middleware/auth.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import prescriptionRoutes from "./routes/prescription.routes";
 import fulfillmentRoutes from "./routes/fulfillment.routes";
+import analyticsRoutes from "./routes/analytics.routes";
+
 
 
 const app = express();
@@ -21,6 +23,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/fulfillments", fulfillmentRoutes);
+app.use("/api/analytics", analyticsRoutes);   // add near app.use("/api/fulfillments", ...)
 
 // Example protected route — proves the JWT middleware works
 app.get("/api/me", authenticate, (req, res) => {
