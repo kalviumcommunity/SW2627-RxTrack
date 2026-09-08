@@ -1,19 +1,20 @@
 FROM node:22-alpine AS dependencies
 WORKDIR /app
-COPY backend/package*.json ./
+COPY package*.json ./
 RUN npm ci
 
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY backend/tsconfig.json ./tsconfig.json
-COPY backend/src ./src
+COPY . .
 RUN npm run build
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-EXPOSE 4000
-CMD ["node", "dist/server.js"]
+ENV PORT=3000
+COPY --from=build /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+EXPOSE 3000
+CMD ["node", "server.js"]

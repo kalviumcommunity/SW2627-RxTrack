@@ -1,0 +1,29 @@
+name: RxTrack CI
+
+on:
+  push:
+    branches: [main, feature/sehaj-api-testing]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rxtrack/package-lock.json
+      - name: Install root dependencies
+        working-directory: rxtrack
+        run: npm ci
+      - name: Validate Prisma schema
+        working-directory: rxtrack
+        run: DATABASE_URL=postgresql://user:password@localhost:5432/rxtrack npm run prisma:validate
+      - name: Build backend
+        working-directory: rxtrack/backend
+        run: npm ci && npm run build
+      - name: Build frontend
+        working-directory: rxtrack/frontend
+        run: npm ci && npm run build

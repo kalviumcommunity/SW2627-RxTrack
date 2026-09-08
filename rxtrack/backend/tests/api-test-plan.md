@@ -25,3 +25,17 @@
 - Test 401 Unauthorized
 - Test 404 Not Found
 - Test 500 Server Error
+
+## Automated Smoke Coverage
+
+Run the compiled API and execute the smoke suite:
+
+```bash
+npm run build
+npm start
+npm test
+```
+
+The smoke suite verifies `GET /health` and that protected prescription routes
+reject anonymous requests. Full seeded-flow verification additionally requires
+PostgreSQL and is documented in the repository setup notes.

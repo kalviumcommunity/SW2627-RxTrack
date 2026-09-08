@@ -23,7 +23,7 @@ async function main() {
     data: {
       name: "Dr. Maya Patel",
       email: "doctor@rxtrack.dev",
-      passwordHash: "dev-hash-doctor",
+      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
       role: UserRole.DOCTOR,
     },
   });
@@ -32,7 +32,7 @@ async function main() {
     data: {
       name: "Pharmacy Admin",
       email: "pharmacy@rxtrack.dev",
-      passwordHash: "dev-hash-pharmacy",
+      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
       role: UserRole.PHARMACY,
     },
   });
@@ -41,7 +41,7 @@ async function main() {
     data: {
       name: "Platform Admin",
       email: "admin@rxtrack.dev",
-      passwordHash: "dev-hash-admin",
+      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
       role: UserRole.ADMIN,
     },
   });

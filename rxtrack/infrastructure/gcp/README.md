@@ -84,3 +84,15 @@ After deployment, verify:
 - Backend health and authentication endpoints respond successfully.
 - Frontend loads and uses the deployed backend URL.
 - No production secrets are present in Git.
+
+## Deployment Script
+
+After configuring billing, Cloud SQL, and Secret Manager, run from the `rxtrack`
+directory:
+
+```powershell
+.\infrastructure\gcp\deploy.ps1 -ProjectId YOUR_GCP_PROJECT_ID -Region us-central1
+```
+
+The script builds and deploys the backend first, then passes its Cloud Run URL to
+the frontend deployment as `NEXT_PUBLIC_API_URL`.
