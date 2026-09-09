@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import apiClient from '@/lib/api'
+import { logout } from '@/lib/auth'
 
 const SERIF = '"Cormorant Garamond", Georgia, serif'
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -162,10 +163,16 @@ export default function DoctorDashboard() {
           </nav>
 
           {/* Footer */}
-          <div className="px-4 py-6 border-t border-gray-800">
+          <div className="px-4 py-6 border-t border-gray-800 flex items-center justify-between">
             <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
               N
             </div>
+            <button
+              onClick={() => logout(router)}
+              className="text-xs font-medium text-gray-400 hover:text-white transition-colors"
+            >
+              Log out
+            </button>
           </div>
         </div>
 
