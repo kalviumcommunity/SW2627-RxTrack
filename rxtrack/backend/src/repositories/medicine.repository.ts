@@ -8,4 +8,13 @@ export const medicineRepository = {
       select: { id: true },
     });
   },
+  /** Powers the medicine picker on the prescription upload form. */
+  findAll(search?: string) {
+    return prisma.medicine.findMany({
+      where: search
+        ? { name: { contains: search, mode: "insensitive" } }
+        : undefined,
+      orderBy: { name: "asc" },
+    });
+  },
 };
