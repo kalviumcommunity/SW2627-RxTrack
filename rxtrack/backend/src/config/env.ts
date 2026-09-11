@@ -10,6 +10,7 @@ const envSchema = z.object({
     .string()
     .regex(/^\d+(s|m|h|d|w|y)$/i, "JWT_EXPIRES_IN must be a duration like 7d, 12h, 30m")
     .default("7d"),
+    CORS_ORIGIN: z.string().default("http://localhost:3000"),
 });
 
 const parsed = envSchema.safeParse(process.env);

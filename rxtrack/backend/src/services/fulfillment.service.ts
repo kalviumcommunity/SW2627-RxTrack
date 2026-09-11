@@ -1,24 +1,11 @@
 import { Prisma, PrescriptionStatus } from "@prisma/client";
-import { pharmacyRepository } from "../repositories/pharmacy.repository";
+import { pharmacyService } from "./pharmacy.service";
 import { fulfillmentRepository } from "../repositories/fulfillment.repository";
 import { prescriptionRepository } from "../repositories/prescription.repository";
-import { userRepository } from "../repositories/user.repository";
 import { ConflictError, NotFoundError } from "../utils/errors";
 import type { RequestActor } from "../types/prescription";
 import { PHARMACY_QUEUE_STATUSES } from "../types/fulfillment";
 import type { PharmacyQueueFilters, MarkFilledInput } from "../types/fulfillment";
-
-async function resolvePharmacyId(actor: RequestActor): Promise<string> {
-  const existing = await pharmacyRepository.findByUserId(actor.id);
-  if (existing) return existing.id;
-
-  const user = await userRepository.findById(actor.id);
-  const created = await pharmacyRepository.create({
-    userId: actor.id,
-    name: user?.name ?? "Unnamed Pharmacy",
-  });
-  return created.id;
-}
 
 export const fulfillmentService = {
   async getPharmacyQueue(filters: PharmacyQueueFilters) {
@@ -47,10 +34,10 @@ export const fulfillmentService = {
     if (prescription.status === PrescriptionStatus.DISPENSED) throw new ConflictError("This prescription has already been filled");
     if (prescription.status === PrescriptionStatus.REJECTED) throw new ConflictError("This prescription was rejected and cannot be filled");
 
-    const pharmacyId = await resolvePharmacyId(actor);
+    const pharmacy = await pharmacyService.resolveOrCreateForUser(actor);
 
     try {
-      return await fulfillmentRepository.markFilled({ prescriptionId: input.prescriptionId, pharmacyId, notes: input.notes });
+      return await fulfillmentRepository.markFilled({ prescriptionId: input.prescriptionId, pharmacyId: pharmacy.id, notes: input.notes });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         throw new ConflictError("This prescription has already been filled by your pharmacy");
