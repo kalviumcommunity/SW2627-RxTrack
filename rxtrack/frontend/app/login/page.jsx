@@ -2,14 +2,12 @@
 'use client'
 
 import { useState } from 'react'
-import Button from '@/components/Button'
-import Input from '@/components/Input'
 import { useRouter } from 'next/navigation'
 import apiClient from '@/lib/api'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('doctor@rxtrack.dev')
+  const [password, setPassword] = useState('password123')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [userType, setUserType] = useState('DOCTOR')
@@ -24,19 +22,28 @@ export default function LoginPage() {
       const response = await apiClient.post('/api/auth/login', {
         email,
         password,
-        role: userType,
       })
 
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('role', response.data.role)
+      const authData = response.data?.data
+      if (!authData?.token || !authData?.user) {
+        throw new Error('Unexpected response format from server')
+      }
 
-      if (response.data.role === 'DOCTOR') {
+      localStorage.setItem('token', authData.token)
+      localStorage.setItem('role', authData.user.role)
+
+      if (authData.user.role === 'DOCTOR') {
         router.push('/doctor')
       } else {
-        router.push('/pharmacy')
+        router.push('/pharmacy/queue')
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.')
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Login failed. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
@@ -98,7 +105,13 @@ export default function LoginPage() {
             </p>
             <div className="flex gap-4">
               <button
-                onClick={() => setUserType('DOCTOR')}
+                type="button"
+                onClick={() => {
+                  setUserType('DOCTOR')
+                  setEmail('doctor@rxtrack.dev')
+                  setPassword('password123')
+                  setError('')
+                }}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold text-base transition-all duration-300 ${
                   userType === 'DOCTOR'
                     ? 'bg-[#273353] text-white'
@@ -108,7 +121,13 @@ export default function LoginPage() {
                  Doctor
               </button>
               <button
-                onClick={() => setUserType('PHARMACY')}
+                type="button"
+                onClick={() => {
+                  setUserType('PHARMACY')
+                  setEmail('pharmacy@rxtrack.dev')
+                  setPassword('password123')
+                  setError('')
+                }}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold text-base transition-all duration-300 ${
                   userType === 'PHARMACY'
                     ? 'bg-emerald-600 text-white'
@@ -185,13 +204,13 @@ export default function LoginPage() {
               <p className="text-teal-700 text-xs text-center font-medium">
                 ✓ Every account is manually verified before activation
               </p>
+              <div className="mt-2 text-xs text-teal-800 text-center font-mono bg-teal-100/60 p-2 rounded">
+                Pre-seeded test credentials ready. Password: <span className="font-bold">password123</span>
+              </div>
             </div>
 
             <p className="text-gray-600 text-sm text-center">
-              Don't have an account?{' '}
-              <a href="#" className="text-blue-600 font-semibold hover:text-blue-700">
-                Sign up Now!
-              </a>
+              Switch role above to auto-fill <span className="font-semibold text-gray-800">Doctor</span> or <span className="font-semibold text-gray-800">Pharmacy</span> demo accounts.
             </p>
           </div>
         </div>

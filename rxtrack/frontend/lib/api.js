@@ -24,6 +24,7 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token')
         localStorage.removeItem('role')
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login'
       }
     }

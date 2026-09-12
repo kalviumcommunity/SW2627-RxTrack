@@ -1,9 +1,10 @@
-/* eslint-disable react/no-unescaped-entities, @next/next/no-img-element */
+/* eslint-disable react/no-unescaped-entities */
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import apiClient from '@/lib/api'
+import { logout } from '@/lib/auth'
 
 export default function PharmacyQueue() {
   const [prescriptions, setPrescriptions] = useState([])
@@ -22,91 +23,66 @@ export default function PharmacyQueue() {
         return
       }
 
-      const mockPrescriptions = [
-        {
-          id: 'RX-2026-1027',
-          doctorName: 'Dr. Rahul Verma',
-          doctorSpecialty: 'General Physician',
-          patientName: 'Rahul Verma',
-          patientAge: 46,
-          medicines: [
-            { name: 'Metformin 500mg', dosage: '1 tablet', frequency: 'Twice a day', duration: '10 days' },
-            { name: 'Telmidartan 40mg', dosage: '1 tablet', frequency: 'Once a day', duration: '10 days' },
-          ],
-          status: 'waiting',
-          receivedAt: '17 Aug, 18:20',
-          notes: 'Patient has allergies to penicillin',
-        },
-        {
-          id: 'RX-2026-1026',
-          doctorName: 'Dr. Anita Singh',
-          doctorSpecialty: 'Pediatrician',
-          patientName: 'Anita Singh',
-          patientAge: 32,
-          medicines: [
-            { name: 'Azithromycin 500mg', dosage: '1 tablet', frequency: 'Twice a day', duration: '5 days' },
-            { name: 'Paracetamol 650mg', dosage: '1 tablet', frequency: 'As needed', duration: '7 days' },
-          ],
-          status: 'waiting',
-          receivedAt: '17 Aug, 08:05',
-          notes: '',
-        },
-        {
-          id: 'RX-2026-1025',
-          doctorName: 'Dr. Vikram R.',
-          doctorSpecialty: 'Endocrinologist',
-          patientName: 'Vikram R.',
-          patientAge: 58,
-          medicines: [
-            { name: 'Insulin Glargine', dosage: '1 vial', frequency: 'Once daily', duration: '30 days' },
-          ],
-          status: 'waiting',
-          receivedAt: '16 Aug, 04:48',
-          notes: 'Requires cold storage - keep in refrigerator',
-        },
-        {
-          id: 'RX-2026-1024',
-          doctorName: 'Dr. Sneha Patel',
-          doctorSpecialty: 'Gynecologist',
-          patientName: 'Sneha Patel',
-          patientAge: 39,
-          medicines: [
-            { name: 'Ferrous Ascorbate 325mg', dosage: '1 tablet', frequency: 'Once a day', duration: '30 days' },
-            { name: 'Folic Acid 5mg', dosage: '1 tablet', frequency: 'Once a day', duration: '30 days' },
-          ],
-          status: 'filled',
-          receivedAt: '16 Aug, 11:55',
-          notes: '',
-        },
-        {
-          id: 'RX-2026-1023',
-          doctorName: 'Dr. Arjun Nair',
-          doctorSpecialty: 'Gastroenterologist',
-          patientName: 'Arjun Nair',
-          patientAge: 41,
-          medicines: [
-            { name: 'Pantoprazole 40mg', dosage: '1 tablet', frequency: 'Once a day', duration: '14 days' },
-            { name: 'Domperidone 10mg', dosage: '1 tablet', frequency: 'Three times a day', duration: '10 days' },
-          ],
-          status: 'filled',
-          receivedAt: '15 Aug, 06:15',
-          notes: 'Take before breakfast',
-        },
-      ]
+      try {
+        const res = await apiClient.get('/api/fulfillments/pharmacy-queue')
+        const items = res.data?.data?.items || []
+        const formatted = items.map((rx) => {
+          const isFilled = rx.status === 'DISPENSED'
+          const medList = (rx.medicines || []).map((m) => ({
+            name: `${m.medicine?.name || 'Medicine'} ${m.medicine?.strength || ''}`.trim(),
+            dosage: `${m.quantity} unit(s)`,
+            frequency: m.dosage || 'As directed',
+            duration: m.instructions || 'Standard course',
+          }))
 
-      setPrescriptions(mockPrescriptions)
-      setLoading(false)
+          return {
+            id: rx.id,
+            doctorName: rx.doctor?.name || 'Dr. Maya Patel',
+            doctorSpecialty: 'General Practice',
+            patientName: rx.patientName,
+            patientAge: 46,
+            medicines:
+              medList.length > 0
+                ? medList
+                : [{ name: 'Prescribed Medication', dosage: '1 unit', frequency: 'As directed', duration: 'Standard' }],
+            status: isFilled ? 'filled' : 'waiting',
+            rawStatus: rx.status,
+            receivedAt: rx.createdAt
+              ? new Date(rx.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recently',
+            notes: '',
+          }
+        })
+        setPrescriptions(formatted)
+      } catch (err) {
+        console.error('Failed to load pharmacy queue:', err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     initQueue()
   }, [router])
 
   const handleMarkAsFilled = async (id) => {
-    setPrescriptions((prev) =>
-      prev.map((rx) =>
-        rx.id === id ? { ...rx, status: 'filled' } : rx
+    try {
+      await apiClient.post('/api/fulfillments/mark-filled', {
+        prescriptionId: id,
+        notes: 'Fulfilled by pharmacy',
+      })
+      setPrescriptions((prev) =>
+        prev.map((rx) =>
+          rx.id === id ? { ...rx, status: 'filled', rawStatus: 'DISPENSED' } : rx
+        )
       )
-    )
+    } catch (err) {
+      alert(err.response?.data?.error || err.message || 'Failed to mark prescription as filled')
+    }
   }
 
   const filteredPrescriptions = prescriptions.filter(
@@ -163,9 +139,15 @@ export default function PharmacyQueue() {
           </div>
         </div>
 
-        <div className="px-4 py-4 border-t border-gray-800">
+        <div className="px-4 py-4 border-t border-gray-800 space-y-2">
           <button className="w-full text-left px-4 py-2 rounded text-sm text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
             Help & support
+          </button>
+          <button
+            onClick={() => logout(router)}
+            className="w-full text-left px-4 py-2 rounded text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors"
+          >
+            Log out
           </button>
         </div>
       </div>
