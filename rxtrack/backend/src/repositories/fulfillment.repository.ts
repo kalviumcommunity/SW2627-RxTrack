@@ -14,10 +14,21 @@ export const fulfillmentRepository = {
         where: { id: input.prescriptionId },
         data: { status: PrescriptionStatus.DISPENSED },
       });
-      return tx.fulfillment.create({
-        data: {
+      return tx.fulfillment.upsert({
+        where: {
+          prescriptionId_pharmacyId: {
+            prescriptionId: input.prescriptionId,
+            pharmacyId: input.pharmacyId,
+          },
+        },
+        create: {
           prescriptionId: input.prescriptionId,
           pharmacyId: input.pharmacyId,
+          notes: input.notes,
+          status: FulfillmentStatus.COMPLETED,
+          pickedUpAt: new Date(),
+        },
+        update: {
           notes: input.notes,
           status: FulfillmentStatus.COMPLETED,
           pickedUpAt: new Date(),

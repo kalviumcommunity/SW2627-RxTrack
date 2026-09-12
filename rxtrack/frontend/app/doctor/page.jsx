@@ -13,7 +13,10 @@ export default function DoctorDashboard() {
   const [prescriptions, setPrescriptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [activePage, setActivePage] = useState('today')
+  const [statusFilter, setStatusFilter] = useState('Everything')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedPrescription, setExpandedPrescription] = useState(null)
+  const [stats, setStats] = useState({ totalPrescriptions: 0, filled: 0, fillRate: 0 })
   const router = useRouter()
 
   useEffect(() => {
@@ -26,71 +29,59 @@ export default function DoctorDashboard() {
         return
       }
 
-      const mockPrescriptions = [
-        {
-          id: 'RX-2026-1027',
-          patientName: 'Rahul Verma',
-          age: 46,
-          date: '17 Aug, 18:20',
-          medicines: ['Metformin 500mg', 'Telmidartan 40mg'],
-          pharmacy: 'Apollo, Sector 18',
-          status: 'Filled',
-          pickupTime: '40 min after consult',
-        },
-        {
-          id: 'RX-2026-1026',
-          patientName: 'Anita Singh',
-          age: 32,
-          date: '17 Aug, 08:05',
-          medicines: ['Azithromycin 500mg', 'Paracetamol 650mg'],
-          pharmacy: '1mg Pharmacy, Noida',
-          status: 'In queue',
-          queueTime: '6 hrs',
-        },
-        {
-          id: 'RX-2026-1025',
-          patientName: 'Vikram R.',
-          age: 58,
-          date: '16 Aug, 04:48',
-          medicines: ['Insulin Glargine'],
-          pharmacy: 'MedPlus, Indirapuram',
-          status: 'Not filled',
-          overdueTime: '3 days',
-        },
-        {
-          id: 'RX-2026-1024',
-          patientName: 'Sneha Patel',
-          age: 39,
-          date: '16 Aug, 11:55',
-          medicines: ['Ferrous Ascorbate', 'Folic Acid'],
-          pharmacy: 'Apollo, Sector 18',
-          status: 'Filled',
-          pickupTime: 'same day',
-        },
-        {
-          id: 'RX-2026-1023',
-          patientName: 'Arjun Nair',
-          age: 41,
-          date: '15 Aug, 06:15',
-          medicines: ['Pantoprazole 40mg', 'Domperidone'],
-          pharmacy: '1mg Pharmacy, Noida',
-          status: 'In queue',
-          queueTime: 'hold till salary day',
-        },
-        {
-          id: 'RX-2026-1022',
-          patientName: 'Fatima Sheikh',
-          age: 63,
-          date: '15 Aug, 02:30',
-          medicines: ['Amlodipine 5mg', 'Aspirin 75mg'],
-          pharmacy: 'Wellness Forever',
-          status: 'Filled',
-          pickupTime: 'same day',
-        },
-      ]
+      try {
+        const [rxRes, statsRes] = await Promise.all([
+          apiClient.get('/api/prescriptions'),
+          apiClient.get('/api/analytics/fill-rate'),
+        ])
 
-      setPrescriptions(mockPrescriptions)
-      setLoading(false)
+        if (statsRes.data?.data) {
+          setStats(statsRes.data.data)
+        }
+
+        const apiItems = rxRes.data?.data?.items || []
+        if (apiItems.length > 0) {
+          const formatted = apiItems.map((rx) => {
+            const statusLabel =
+              rx.status === 'DISPENSED'
+                ? 'Filled'
+                : rx.status === 'READY' || rx.status === 'PROCESSING' || rx.status === 'PENDING'
+                ? 'In queue'
+                : 'Not filled'
+
+            const meds = (rx.medicines || []).map(
+              (m) => `${m.medicine?.name || 'Medicine'} ${m.medicine?.strength || ''}`.trim()
+            )
+
+            const dateStr = rx.createdAt
+              ? new Date(rx.createdAt).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recently'
+
+            return {
+              id: rx.id,
+              patientName: rx.patientName,
+              age: 42,
+              date: dateStr,
+              medicines: meds.length > 0 ? meds : ['General Medicine'],
+              pharmacy: 'Partner Pharmacy',
+              status: statusLabel,
+              pickupTime: rx.status === 'DISPENSED' ? 'Fulfilled' : 'In queue',
+            }
+          })
+          setPrescriptions(formatted)
+        } else {
+          setPrescriptions([])
+        }
+      } catch (err) {
+        console.error('Failed to fetch doctor dashboard data:', err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     initDashboard()
@@ -124,157 +115,180 @@ export default function DoctorDashboard() {
     )
   }
 
+  const filteredPrescriptions = prescriptions.filter((rx) => {
+    const matchesFilter = statusFilter === 'Everything' || rx.status === statusFilter
+    const matchesSearch =
+      !searchQuery ||
+      rx.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rx.medicines.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase()))
+    return matchesFilter && matchesSearch
+  })
+
   return (
-    <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-      <div className="min-h-screen bg-gray-50 flex" style={{ fontFamily: SANS }}>
-        {/* Sidebar */}
-        <div className="w-56 bg-gray-900 text-white flex flex-col border-r border-gray-800">
-          {/* Logo */}
-          <div className="h-20 flex items-center px-6 border-b border-gray-800">
-            <div>
-              <div className="font-bold text-lg" style={{ fontFamily: SERIF }}>Rx Track</div>
-              <div className="text-xs text-gray-400">TATA 1mg</div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1">
-            {navigationItems.map((item) => {
-              const isActive = activePage === item.id
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActivePage(item.id)}
-                  className={`w-full text-left px-4 py-3 rounded text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-white text-gray-900'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              )
-            })}
-          </nav>
-
-          {/* Footer */}
-          <div className="px-4 py-6 border-t border-gray-800 flex items-center justify-between">
-            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
-              N
-            </div>
-            <button
-              onClick={() => logout(router)}
-              className="text-xs font-medium text-gray-400 hover:text-white transition-colors"
-            >
-              Log out
-            </button>
+    <div className="min-h-screen bg-gray-50 flex" style={{ fontFamily: SANS }}>
+      {/* Sidebar */}
+      <div className="w-56 bg-gray-900 text-white flex flex-col border-r border-gray-800">
+        {/* Logo */}
+        <div className="h-20 flex items-center px-6 border-b border-gray-800">
+          <div>
+            <div className="font-bold text-lg" style={{ fontFamily: SERIF }}>Rx Track</div>
+            <div className="text-xs text-gray-400">TATA 1mg</div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Bar */}
-          <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
-            <input
-              type="text"
-              placeholder="Search a patient, RX number or medicine"
-              className="flex-1 mr-8 px-4 py-2 bg-gray-100 rounded border-0 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
-              style={{ color: '#273353' }}
-            />
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">Thu, 17 Aug</span>
-              <button className="px-4 py-2 bg-gray-900 text-white rounded text-sm font-medium hover:bg-gray-800">
-                Upload prescription
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {navigationItems.map((item) => {
+            const isActive = activePage === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActivePage(item.id)}
+                className={`w-full text-left px-4 py-3 rounded text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-white text-gray-900'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                }`}
+              >
+                {item.label}
               </button>
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-[#273353]">
-                AS
-              </div>
+            )
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-4 py-6 border-t border-gray-800 flex items-center justify-between">
+          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white">
+            Dr
+          </div>
+          <button
+            onClick={() => logout(router)}
+            className="text-xs font-medium text-gray-400 hover:text-white transition-colors"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
+          <input
+            type="text"
+            placeholder="Search a patient, RX number or medicine"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 mr-8 px-4 py-2 bg-gray-100 rounded border-0 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
+            style={{ color: '#273353' }}
+          />
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">Clinic Portal</span>
+            <button
+              onClick={() => router.push('/prescriptions/upload')}
+              className="px-4 py-2 bg-gray-900 text-white rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              Upload prescription
+            </button>
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-[#273353]">
+              MP
             </div>
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            <div className="p-8">
-              {/* Header */}
-              <div className="mb-8">
-                <p className="text-xs font-semibold text-[#273353] mb-2 tracking-wide">THURSDAY MORNING CLINIC</p>
-                <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: SERIF, fontWeight: 600 }}>Good morning, Dr. Sharma.</h1>
-                <p className="text-base text-gray-600 leading-relaxed max-w-2xl">
-                  Ten of yesterday's prescriptions are still sitting in a pharmacy queue, and three chronic refills never got picked up at all.
-                </p>
-              </div>
+        {/* Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-8">
+            {/* Header */}
+            <div className="mb-8">
+              <p className="text-xs font-semibold text-[#273353] mb-2 tracking-wide">CLINICAL PRACTICE DASHBOARD</p>
+              <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: SERIF, fontWeight: 600 }}>Good day, Dr. Maya Patel</h1>
+              <p className="text-base text-gray-600 leading-relaxed max-w-2xl">
+                Real-time visibility into whether your patients fill their prescriptions across partner pharmacies.
+              </p>
+            </div>
 
-              {/* Compliance & Stats */}
-              <div className="flex gap-8 mb-8">
-                <div className="flex-1">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="bg-white rounded p-6 border border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">PRESCRIPTIONS WRITTEN</p>
-                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>128</p>
-                      <p className="text-xs text-gray-500 mb-1">since 1 Aug</p>
-                      <p className="text-xs text-green-600 font-medium">↗ 12 this week</p>
-                    </div>
-                    <div className="bg-white rounded p-6 border border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">FILLED BY PATIENTS</p>
-                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>96</p>
-                      <p className="text-xs text-gray-500 mb-1">75% of everything you wrote</p>
-                      <p className="text-xs text-green-600 font-medium">↗ 4 pts</p>
-                    </div>
-                    <div className="bg-white rounded p-6 border border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">SITTING IN QUEUE</p>
-                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>10</p>
-                      <p className="text-xs text-gray-500">3 waiting over 24 hrs</p>
-                    </div>
-                    <div className="bg-white rounded p-6 border border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">NEVER FILLED</p>
-                      <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>22</p>
-                      <p className="text-xs text-gray-500">mostly chronic refills</p>
-                      <p className="text-xs text-[#273353] font-medium">↘ 2 pts</p>
-                    </div>
+            {/* Compliance & Stats */}
+            <div className="flex gap-8 mb-8">
+              <div className="flex-1">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-white rounded p-6 border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">PRESCRIPTIONS WRITTEN</p>
+                    <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>{stats.totalPrescriptions}</p>
+                    <p className="text-xs text-gray-500 mb-1">Total platform volume</p>
+                    <p className="text-xs text-green-600 font-medium">Active tracking</p>
+                  </div>
+                  <div className="bg-white rounded p-6 border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">FILLED BY PATIENTS</p>
+                    <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>{stats.filled}</p>
+                    <p className="text-xs text-gray-500 mb-1">{stats.fillRate}% overall compliance</p>
+                    <p className="text-xs text-green-600 font-medium">Verified</p>
+                  </div>
+                  <div className="bg-white rounded p-6 border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">SITTING IN QUEUE</p>
+                    <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>
+                      {prescriptions.filter((p) => p.status === 'In queue').length}
+                    </p>
+                    <p className="text-xs text-gray-500">Waiting for fulfillment</p>
+                  </div>
+                  <div className="bg-white rounded p-6 border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-2 font-semibold tracking-wide">NOT FILLED</p>
+                    <p className="text-3xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>
+                      {prescriptions.filter((p) => p.status === 'Not filled').length}
+                    </p>
+                    <p className="text-xs text-gray-500">Pending review</p>
                   </div>
                 </div>
-
-                {/* Compliance Streak */}
-                <div className="w-48 bg-white rounded p-6 border border-gray-200">
-                  <p className="text-xs text-gray-600 font-semibold mb-2 tracking-wide">COMPLIANCE STREAK</p>
-                  <p className="text-4xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>6 weeks</p>
-                  <p className="text-xs text-gray-500">above 70%</p>
-                </div>
               </div>
 
-              {/* Recent Prescriptions */}
-              <div className="grid grid-cols-3 gap-8">
-                <div className="col-span-2">
-                  <div className="bg-white rounded border border-gray-200">
-                    <div className="p-6 border-b border-gray-200">
+              {/* Compliance Streak */}
+              <div className="w-48 bg-white rounded p-6 border border-gray-200">
+                <p className="text-xs text-gray-600 font-semibold mb-2 tracking-wide">COMPLIANCE RATE</p>
+                <p className="text-4xl font-bold text-gray-900 mb-2" style={{ fontFamily: SERIF }}>{stats.fillRate}%</p>
+                <p className="text-xs text-gray-500">Real-time fill score</p>
+              </div>
+            </div>
+
+            {/* Recent Prescriptions */}
+            <div className="grid grid-cols-3 gap-8">
+              <div className="col-span-2">
+                <div className="bg-white rounded border border-gray-200">
+                  <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                    <div>
                       <h2 className="text-lg font-bold text-gray-900 mb-1" style={{ fontFamily: SERIF, fontWeight: 600 }}>Recent prescriptions</h2>
                       <p className="text-sm text-gray-600">Live status straight from the pharmacy queue</p>
                     </div>
+                    <span className="text-xs bg-blue-50 text-[#273353] px-2.5 py-1 rounded font-medium">
+                      {filteredPrescriptions.length} shown
+                    </span>
+                  </div>
 
-                    {/* Filters */}
-                    <div className="px-6 py-4 border-b border-gray-200 flex gap-2">
-                      <button className="px-3 py-1 rounded text-sm font-medium bg-gray-900 text-white">
-                        Everything
+                  {/* Filters */}
+                  <div className="px-6 py-4 border-b border-gray-200 flex gap-2">
+                    {['Everything', 'In queue', 'Not filled', 'Filled'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setStatusFilter(tab)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          statusFilter === tab
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {tab}
                       </button>
-                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
-                        In queue
-                      </button>
-                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
-                        Not filled
-                      </button>
-                      <button className="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">
-                        Filled
-                      </button>
-                    </div>
+                    ))}
+                  </div>
 
-                    {/* Prescriptions List */}
-                    <div className="divide-y divide-gray-200">
-                      {prescriptions.map((rx) => (
+                  {/* Prescriptions List */}
+                  <div className="divide-y divide-gray-200">
+                    {filteredPrescriptions.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 text-sm">
+                        No prescriptions matching the selected criteria.
+                      </div>
+                    ) : (
+                      filteredPrescriptions.map((rx) => (
                         <div
                           key={rx.id}
                           className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -323,7 +337,7 @@ export default function DoctorDashboard() {
                             </div>
                           )}
                         </div>
-                      ))}
+                      )))}
                     </div>
 
                     <div className="px-6 py-4 text-center text-sm text-[#273353] font-medium hover:underline cursor-pointer">
@@ -450,6 +464,5 @@ export default function DoctorDashboard() {
           </div>
         </div>
       </div>
-    </>
   )
 }

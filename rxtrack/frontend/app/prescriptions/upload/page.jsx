@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities, @next/next/no-img-element */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import apiClient from '@/lib/api'
 
@@ -10,23 +10,58 @@ export default function UploadPrescription() {
     patientName: '',
     patientAge: '',
     patientPhone: '',
-    pharmacy: 'Apollo, Sector 18',
-    medicines: [{ name: '', strength: '', quantity: '1', frequency: 'Twice a day', duration: '10 days' }],
+    pharmacy: 'Green Valley Pharmacy',
+    medicines: [{ medicineId: '', name: '', strength: '', quantity: '1', frequency: 'Twice a day', duration: '10 days' }],
     notes: '',
     notifyAfter: false,
   })
+  const [availableMedicines, setAvailableMedicines] = useState([])
   const [selectedFile, setSelectedFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const res = await apiClient.get('/api/medicines')
+        if (res.data?.data) {
+          setAvailableMedicines(res.data.data)
+          // Default first medicine row to first available medicine if empty
+          if (res.data.data.length > 0) {
+            setFormData((prev) => {
+              if (prev.medicines[0] && !prev.medicines[0].medicineId) {
+                const first = res.data.data[0]
+                return {
+                  ...prev,
+                  medicines: [
+                    {
+                      ...prev.medicines[0],
+                      medicineId: first.id,
+                      name: first.name,
+                      strength: first.strength || '',
+                    },
+                  ],
+                }
+              }
+              return prev
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load medicines catalog:', err)
+      }
+    }
+    fetchCatalog()
+  }, [])
+
   const pharmacyOptions = [
+    'Green Valley Pharmacy',
     'Apollo, Sector 18',
     '1mg Pharmacy, Noida',
     'MedPlus, Indirapuram',
     'Wellness Forever',
-    'Let the patient choose',
   ]
 
   const frequencyOptions = ['Once a day', 'Twice a day', 'Thrice a day', 'As needed']
@@ -42,6 +77,16 @@ export default function UploadPrescription() {
   const handleMedicineChange = (index, field, value) => {
     const newMedicines = [...formData.medicines]
     newMedicines[index][field] = value
+
+    // If user picks from medicineId selector, auto-sync name and strength
+    if (field === 'medicineId') {
+      const selectedMed = availableMedicines.find((m) => m.id === value)
+      if (selectedMed) {
+        newMedicines[index].name = selectedMed.name
+        newMedicines[index].strength = selectedMed.strength || ''
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       medicines: newMedicines,
@@ -49,11 +94,19 @@ export default function UploadPrescription() {
   }
 
   const addMedicineLine = () => {
+    const fallbackMed = availableMedicines[0]
     setFormData((prev) => ({
       ...prev,
       medicines: [
         ...prev.medicines,
-        { name: '', strength: '', quantity: '1', frequency: 'Twice a day', duration: '10 days' },
+        {
+          medicineId: fallbackMed ? fallbackMed.id : '',
+          name: fallbackMed ? fallbackMed.name : '',
+          strength: fallbackMed ? fallbackMed.strength || '' : '',
+          quantity: '1',
+          frequency: 'Twice a day',
+          duration: '10 days',
+        },
       ],
     }))
   }
@@ -89,25 +142,61 @@ export default function UploadPrescription() {
       return
     }
 
-    try {
-      const formDataToSend = new FormData()
-      formDataToSend.append('patientName', formData.patientName)
-      formDataToSend.append('patientAge', formData.patientAge)
-      formDataToSend.append('patientPhone', formData.patientPhone)
-      formDataToSend.append('pharmacy', formData.pharmacy)
-      formDataToSend.append('medicines', JSON.stringify(formData.medicines))
-      formDataToSend.append('notes', formData.notes)
-      if (selectedFile) {
-        formDataToSend.append('file', selectedFile)
+    // Resolve medicines ensuring each has a valid medicineId
+    const formattedMedicines = []
+    const usedIds = new Set()
+
+    for (const item of formData.medicines) {
+      let medId = item.medicineId
+      if (!medId && item.name) {
+        const found = availableMedicines.find(
+          (m) => m.name.toLowerCase().includes(item.name.toLowerCase()) ||
+                 item.name.toLowerCase().includes(m.name.toLowerCase())
+        )
+        if (found) medId = found.id
       }
 
-      await apiClient.post('/api/prescriptions/upload', formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      if (!medId) {
+        setError(`Please select a valid medicine from the catalog for "${item.name || 'unnamed medicine'}"`)
+        setLoading(false)
+        return
+      }
+
+      if (usedIds.has(medId)) {
+        setError('The same medicine cannot be listed twice on one prescription. Please adjust the quantity.')
+        setLoading(false)
+        return
+      }
+
+      usedIds.add(medId)
+      formattedMedicines.push({
+        medicineId: medId,
+        quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
+        dosage: item.strength || item.frequency || undefined,
+        instructions: item.duration ? `${item.frequency || 'Take'} for ${item.duration}` : item.frequency,
+      })
+    }
+
+    if (formattedMedicines.length === 0) {
+      setError('At least one medicine is required')
+      setLoading(false)
+      return
+    }
+
+    try {
+      await apiClient.post('/api/prescriptions/upload', {
+        patientName: formData.patientName.trim(),
+        medicines: formattedMedicines,
       })
 
       router.push('/doctor')
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to upload prescription')
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Failed to upload prescription'
+      )
     } finally {
       setLoading(false)
     }
@@ -190,6 +279,11 @@ export default function UploadPrescription() {
         {/* Content */}
         <div className="flex-1 overflow-auto">
           <div className="p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700 text-sm font-medium">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-8">
               {/* Left Column */}
               <div className="col-span-2 space-y-8">
@@ -221,6 +315,7 @@ export default function UploadPrescription() {
                         value={formData.patientName}
                         onChange={handleInputChange}
                         placeholder="e.g. Rahul Verma"
+                        required
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded text-[#273353] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
                       />
                     </div>
@@ -261,7 +356,7 @@ export default function UploadPrescription() {
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">The medicines</h2>
                       <p className="text-sm text-gray-600 mt-1">
-                        One line per medicine, the way you'd write it on paper
+                        Select from catalog or search molecule
                       </p>
                     </div>
                     <span className="text-sm text-gray-600">{formData.medicines.length} added</span>
@@ -272,26 +367,46 @@ export default function UploadPrescription() {
                       <div key={index} className="border border-gray-200 rounded p-4 space-y-3">
                         <div className="flex gap-3">
                           <div className="flex-1">
-                            <input
-                              type="text"
-                              placeholder="Medicine name and strength"
-                              value={medicine.name}
-                              onChange={(e) =>
-                                handleMedicineChange(index, 'name', e.target.value)
-                              }
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm text-[#273353] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
-                            />
+                            {availableMedicines.length > 0 ? (
+                              <select
+                                value={medicine.medicineId}
+                                onChange={(e) =>
+                                  handleMedicineChange(index, 'medicineId', e.target.value)
+                                }
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm text-[#273353] focus:outline-none focus:ring-2 focus:ring-[#273353]"
+                              >
+                                <option value="">-- Select medicine from catalog --</option>
+                                {availableMedicines.map((med) => (
+                                  <option key={med.id} value={med.id}>
+                                    {med.name} {med.strength ? `(${med.strength})` : ''} - {med.form || 'Medicine'}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                placeholder="Medicine name and strength"
+                                value={medicine.name}
+                                onChange={(e) =>
+                                  handleMedicineChange(index, 'name', e.target.value)
+                                }
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded text-sm text-[#273353] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#273353]"
+                              />
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeMedicineLine(index)}
-                            className="text-red-600 hover:text-red-700 font-medium"
-                          >
-                            ✕
-                          </button>
+                          {formData.medicines.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeMedicineLine(index)}
+                              className="text-red-600 hover:text-red-700 font-medium px-2"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                           <div>
+                            <label className="block text-xs text-gray-500 mb-1">Quantity</label>
                             <input
                               type="number"
                               placeholder="1"
@@ -304,6 +419,7 @@ export default function UploadPrescription() {
                             />
                           </div>
                           <div>
+                            <label className="block text-xs text-gray-500 mb-1">Frequency</label>
                             <select
                               value={medicine.frequency}
                               onChange={(e) =>
@@ -319,6 +435,7 @@ export default function UploadPrescription() {
                             </select>
                           </div>
                           <div>
+                            <label className="block text-xs text-gray-500 mb-1">Duration</label>
                             <input
                               type="text"
                               placeholder="10 days"
@@ -334,36 +451,19 @@ export default function UploadPrescription() {
                     ))}
                   </div>
 
-                  <div className="mt-6 flex gap-4">
+                  <div className="mt-6 flex items-center justify-between">
                     <button
                       type="button"
                       onClick={addMedicineLine}
                       className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded text-sm font-medium hover:bg-gray-200"
                     >
-                      + Add a line
+                      + Add another medicine
                     </button>
-                    <p className="text-sm text-gray-600 flex items-center">
-                      or from your usual list:
-                      <span className="ml-2 flex gap-2">
-                        {['Metformin 500mg', 'Telmidartan 40mg'].map((med) => (
-                          <button
-                            key={med}
-                            type="button"
-                            onClick={() => {
-                              const lastMedicine = formData.medicines[formData.medicines.length - 1]
-                              handleMedicineChange(
-                                formData.medicines.length - 1,
-                                'name',
-                                med
-                              )
-                            }}
-                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
-                          >
-                            {med}
-                          </button>
-                        ))}
-                      </span>
-                    </p>
+                    {availableMedicines.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {availableMedicines.length} medicines available in catalog
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -386,7 +486,8 @@ export default function UploadPrescription() {
                             alt="Preview"
                             className="max-h-40 mx-auto mb-4 rounded"
                           />
-                          <p className="text-sm text-gray-600">Click to change</p>
+                          <p className="text-sm font-medium text-gray-900">{selectedFile?.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">Click to change</p>
                         </div>
                       ) : (
                         <div>

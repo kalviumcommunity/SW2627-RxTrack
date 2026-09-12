@@ -1,4 +1,4 @@
-/* eslint-disable react/no-unescaped-entities, @next/next/no-img-element */
+/* eslint-disable react/no-unescaped-entities */
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -14,16 +14,84 @@ export default function PrescriptionDetail() {
   useEffect(() => {
     const initDetail = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-      const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
 
       if (!token) {
         router.push('/login')
         return
       }
 
-      // Mock prescription data
+      try {
+        if (params?.id) {
+          const res = await apiClient.get(`/api/prescriptions/${params.id}`)
+          const data = res.data?.data
+          if (data) {
+            const formatted = {
+              id: data.id,
+              doctorName: data.doctor?.name || 'Dr. Maya Patel',
+              doctorSpecialty: 'General Practice',
+              doctorPhone: '+91 98765 43210',
+              doctorClinic: 'Apollo Clinic, Sector 18',
+              patientName: data.patientName,
+              patientAge: 46,
+              patientPhone: '+91 98765 43210',
+              patientEmail: 'patient@rxtrack.dev',
+              patientAddress: '123 Main Street, Sector 18',
+              medicines: (data.medicines || []).map((m, i) => ({
+                id: m.id || i,
+                name: m.medicine?.name || 'Medicine',
+                strength: m.medicine?.strength || '',
+                dosage: `${m.quantity} unit(s)`,
+                frequency: m.dosage || 'As directed',
+                duration: m.instructions || '10 days',
+                startDate: new Date(data.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                endDate: 'Completed',
+                sideEffects: 'None reported',
+              })),
+              pharmacy: {
+                name: 'Green Valley Pharmacy',
+                location: 'Sector 18',
+                phone: '+91 555-0101',
+                address: '123 Wellness Avenue',
+              },
+              status: data.status === 'DISPENSED' ? 'Filled' : data.status === 'READY' ? 'Ready for Pickup' : 'In Queue',
+              createdAt: new Date(data.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              receivedAt: new Date(data.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              estimatedPickup: 'Same day',
+              notes: 'Patient records tracked on RxTrack.',
+              timeline: [
+                {
+                  status: 'Prescription Sent',
+                  time: new Date(data.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                  description: `Created by ${data.doctor?.name || 'Doctor'}`,
+                  icon: '📤',
+                },
+                {
+                  status: 'Received at Pharmacy',
+                  time: 'Synchronized',
+                  description: 'Green Valley Pharmacy received digital order',
+                  icon: '📋',
+                },
+                {
+                  status: data.status === 'DISPENSED' ? 'Dispensed' : 'In Queue',
+                  time: data.status === 'DISPENSED' ? 'Dispensed' : 'Processing',
+                  description: data.status === 'DISPENSED' ? 'Prescription verified and filled once' : 'Prescription waiting in queue',
+                  icon: data.status === 'DISPENSED' ? '✓' : '⏳',
+                  current: true,
+                },
+              ],
+            }
+            setPrescription(formatted)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch prescription from API, falling back to mock:', err)
+      }
+
+      // Mock prescription fallback if offline or param not found
       const mockPrescription = {
-        id: 'RX-2026-1027',
+        id: params?.id || 'RX-2026-1027',
         doctorName: 'Dr. Rahul Verma',
         doctorSpecialty: 'General Physician',
         doctorPhone: '+91 98765 43210',
@@ -45,17 +113,6 @@ export default function PrescriptionDetail() {
             endDate: '26 Aug 2026',
             sideEffects: 'May cause stomach upset',
           },
-          {
-            id: 2,
-            name: 'Telmidartan',
-            strength: '40mg',
-            dosage: '1 tablet',
-            frequency: 'Once a day',
-            duration: '10 days',
-            startDate: '17 Aug 2026',
-            endDate: '26 Aug 2026',
-            sideEffects: 'Dizziness, fatigue',
-          },
         ],
         pharmacy: {
           name: 'Apollo Pharmacy',
@@ -75,25 +132,6 @@ export default function PrescriptionDetail() {
             description: 'Doctor sent prescription',
             icon: '📤',
           },
-          {
-            status: 'Received at Pharmacy',
-            time: '17 Aug, 18:25',
-            description: 'Apollo Pharmacy received prescription',
-            icon: '📋',
-          },
-          {
-            status: 'In Queue',
-            time: '17 Aug, 18:30',
-            description: 'Prescription is being processed',
-            icon: '⏳',
-            current: true,
-          },
-          {
-            status: 'Ready for Pickup',
-            time: 'Expected 19:30',
-            description: 'Prescription will be ready',
-            icon: '✓',
-          },
         ],
       }
 
@@ -102,7 +140,7 @@ export default function PrescriptionDetail() {
     }
 
     initDetail()
-  }, [router])
+  }, [params, router])
 
   if (loading) {
     return (
