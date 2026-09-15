@@ -48,12 +48,14 @@ export interface Prescription {
   patientName: string;
   status: string;
   createdAt: string;
-  medicines: Array<{ id: string; quantity: number; medicine: Medicine }>;
+  medicines: Array<{ id: string; quantity: number; dosage?: string | null; instructions?: string | null; medicine: Medicine }>;
+  fulfillments?: Fulfillment[];
 }
 
 export interface Fulfillment {
   id: string;
   status: string;
+  notes?: string | null;
   prescription: Prescription;
 }
 
@@ -67,6 +69,10 @@ export const authApi = {
 export const prescriptionApi = {
   async list() {
     const { data } = await api.get<Prescription[]>("/api/prescriptions");
+    return data;
+  },
+  async get(id: string) {
+    const { data } = await api.get<Prescription>(`/api/prescriptions/${id}`);
     return data;
   },
   async upload(payload: { patientName: string; imageUrl?: string; medicines: Array<{ medicineId: string; quantity: number }> }) {

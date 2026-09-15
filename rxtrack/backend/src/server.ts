@@ -138,6 +138,29 @@ app.get("/api/prescriptions/pharmacy-queue", auth, requireRole(UserRole.PHARMACY
 	}
 });
 
+app.get("/api/prescriptions/:id", auth, async (request: AuthenticatedRequest, response, next) => {
+	try {
+		const prescriptionId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+		const prescription = await prisma.prescription.findFirst({
+			where: {
+				id: prescriptionId,
+				...(request.user?.role === UserRole.DOCTOR ? { doctorId: request.user.id } : {}),
+				...(request.user?.role === UserRole.PHARMACY
+					? { fulfillments: { some: { pharmacy: { userId: request.user.id } } } }
+					: {}),
+			},
+			include: {
+				medicines: { include: { medicine: true } },
+				fulfillments: { include: { pharmacy: true } },
+			},
+		});
+		if (!prescription) return response.status(404).json({ error: "Prescription not found" });
+		return response.json(prescription);
+	} catch (error) {
+		return next(error);
+	}
+});
+
 app.post("/api/fulfillments/mark-filled", auth, requireRole(UserRole.PHARMACY, UserRole.ADMIN), async (request: AuthenticatedRequest, response, next) => {
 	try {
 		const { fulfillmentId } = request.body;
