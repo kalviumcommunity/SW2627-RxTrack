@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   FulfillmentStatus,
@@ -19,11 +20,16 @@ async function main() {
   await prisma.medicine.deleteMany();
   await prisma.user.deleteMany();
 
+  const defaultPassword = "password123";
+  const doctorHash = await bcrypt.hash(defaultPassword, 10);
+  const pharmacyHash = await bcrypt.hash(defaultPassword, 10);
+  const adminHash = await bcrypt.hash(defaultPassword, 10);
+
   const doctor = await prisma.user.create({
     data: {
       name: "Dr. Maya Patel",
       email: "doctor@rxtrack.dev",
-      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
+      passwordHash: doctorHash,
       role: UserRole.DOCTOR,
     },
   });
@@ -32,7 +38,7 @@ async function main() {
     data: {
       name: "Pharmacy Admin",
       email: "pharmacy@rxtrack.dev",
-      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
+      passwordHash: pharmacyHash,
       role: UserRole.PHARMACY,
     },
   });
@@ -41,7 +47,7 @@ async function main() {
     data: {
       name: "Platform Admin",
       email: "admin@rxtrack.dev",
-      passwordHash: "$2b$10$57n7L9TXrv9O6S3cf/LgFu03U3LczEsn7iTZOrZb4UoHZTPhCPPaC",
+      passwordHash: adminHash,
       role: UserRole.ADMIN,
     },
   });

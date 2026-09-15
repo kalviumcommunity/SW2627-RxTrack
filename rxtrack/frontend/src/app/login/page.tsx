@@ -8,7 +8,7 @@ import { authApi } from "../../lib/api";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("doctor@rxtrack.dev");
-  const [password, setPassword] = useState("password");
+  const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign in"}</Button>
         </form>
-        <p className="mt-4 text-sm text-gray-600">Demo accounts use the password <strong>password</strong>.</p>
+        <p className="mt-4 text-sm text-gray-600">Demo accounts use the password <strong>password123</strong>.</p>
       </Card>
     </main>
   );
